@@ -1,0 +1,67 @@
+---
+- name: Install Jenkins software
+- hosts: jenkins
+  gather_facts: true
+  become: true
+
+
+# install java
+tasks:
+
+ - name: install java
+    yum: name=java-1.8.0-openjdk.x86_64 state=installed
+
+ - name: set default java environment variables - JAVA_HOME
+    lineinfile:
+    dest: /etc/profile
+    regexp: ^JAVA_HOME=
+    line: JAVA_HOME=/usr/lib/jvm/jre-1.8.0-openjdk
+
+ - name: set default java environment variables - JRE_HOME
+    lineinfile:
+    dest: /etc/profile
+    regexp: ^JRE_HOME=
+    line: JRE_HOME=/usr/lib/jvm/jre
+
+# prepare jenkins
+
+ - name: get jenkins repo
+    get_url:
+    url: http://pkg.jenkins-ci.org/redhat-stable/jenkins.repo
+    dest: /etc/yum.repos.d/jenkins.repo
+
+ - name: add Jenkins repo GPG key.
+    rpm_key:
+    state: present
+    key: "{{ jenkins_repo_key_url }}"
+
+ - name: yum jenkins
+    yum: name=jenkins state=installed
+
+
+ - name: modify init file
+    lineinfile:
+    dest: "{{ jenkins_init_file }}"
+    insertafter: '^{{ item.option }}='
+    regexp: '^{{ item.option}}=\"\${{ item.option }} '
+    line: '{{ item.option }}="${{ item.option }} {{ item.value }}"'
+    state: present
+    with_items: "{{ jenkins_init_changes }}"
+    register: jenkins_init_prefix
+
+ - name: configure port
+    lineinfile:
+    dest: /etc/sysconfig/jenkins
+    regexp: ^JENKINS_PORT=
+    line: JENKINS_PORT=8000
+
+ - name: fix firewall
+    shell: "firewall-cmd --zone=public --permanent --add-port={{ jenkins_http_port }}/tcp"
+
+ - name: reload firewall
+    shell: "firewall-cmd --reload"
+
+
+
+ - name: start jenkins
+    service: name=jenkins state=started

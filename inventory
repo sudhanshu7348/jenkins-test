@@ -1,0 +1,2 @@
+[jenkins]
+54.149.147.58 ansible_user=ec2-user ansible_port=22 ansible_ssh_private_key_file=/home/ec2-user/Sudhanshu_Oregon.pem

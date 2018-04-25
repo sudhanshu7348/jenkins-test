@@ -1,0 +1,80 @@
+---
+- hosts: jenkins
+  become: true
+  tasks:
+
+  - name: install java
+    yum: name=java-1.8.0-openjdk.x86_64 state=installed
+  - name: remove java 7
+    yum: name=java-1.7.0-openjdk.x86_64 state=absent
+
+#  - name: set default java environment variables - JAVA_HOME
+#    lineinfile:
+#    dest: /etc/profile
+#    regexp: ^JAVA_HOME=
+#    line: JAVA_HOME=/usr/lib/jvm/jre-1.8.0-openjdk
+
+#  - name: set default java environment variables - JRE_HOME
+#    lineinfile:
+#    dest: /etc/profile
+#    regexp: ^JRE_HOME=
+#    line: JRE_HOME=/usr/lib/jvm/jre
+
+# prepare jenkins
+
+  - name: get jenkins repo
+    get_url:
+      url: http://pkg.jenkins-ci.org/redhat-stable/jenkins.repo
+      dest: /etc/yum.repos.d/jenkins.repo
+
+  - name: add Jenkins repo GPG key.
+    rpm_key:
+      state: present
+      key: https://jenkins-ci.org/redhat/jenkins-ci.org.key
+
+  - name: yum jenkins
+    yum: name=jenkins state=installed
+
+  - name: Jenkins Skip startUp for MI
+    lineinfile:
+      dest: /etc/sysconfig/jenkins
+      regexp: '^JENKINS_JAVA_OPTIONS='
+      line: 'JENKINS_JAVA_OPTIONS="-Djava.awt.headless=true -Djenkins.install.runSetupWizard=false"'
+
+  - name: start jenkins
+    service: name=jenkins state=started 
+  
+  - name: install plugin
+    jenkins_plugin:
+       name: "{{ item }}"
+       state: present
+    with_items:
+        - git
+        - maven
+        - sonar
+        - nexus
+  - name: start jenkins
+    service: name=jenkins state=restarted
+
+  - name: download s3 bucket depedency
+    get_url:
+      url: https://s3-us-west-2.amazonaws.com/shudhanshu-poc/backup.zip
+      dest: /home/ec2-user
+
+  - name: unzip
+    shell: "unzip -o /home/ec2-user/backup.zip -d /var/lib/jenkins/"
+
+  - name: download s3 bucket depedency
+    get_url:
+       url: https://s3-us-west-2.amazonaws.com/shudhanshu-poc/jobconfig.xml
+       dest: /home/ec2-user/
+
+  - name: sleep
+    shell: "sleep 50"
+
+  - name: create job
+    shell: "java -jar /var/cache/jenkins/war/WEB-INF/jenkins-cli.jar -s http://localhost:8080/ create-job test1 < /home/ec2-user/jobconfig.xml"
+
+  - name: start jenkins
+    service: name=jenkins state=restarted
+  
