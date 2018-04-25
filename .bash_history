@@ -139,3 +139,7 @@ cat inventory
 sudo su -
 ls 
 ls -ltr
+ls -ltr
+cat install-java-jenkins.yml
+su - ec2-user
+sudo su -
